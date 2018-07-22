@@ -1,0 +1,4 @@
+name	parent	size	ecc	peri	lop	t0	color	mu
+Kerbin	None	0.600	0.000	13599.8	0.0	3.7	b	1647.7
+Mun	Kerbin	0.200	0.000	12.00	0.0	0.0	w	30.39
+Minmus	Kerbin	0.060	0.000	47.00	116.0	0.0	b	0.8239

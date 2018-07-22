@@ -17,10 +17,10 @@ def zero(f, guess=0, tol=0, limit=None):
 def solution(f1, f2, guess=0, tol=0):
     """
     Find x such that f1(x) = f2(x)
-    :param f1:
-    :param f2:
-    :param guess:
-    :param tol:
+    :param f1: a single-input function
+    :param f2: a single-input function
+    :param guess: value for the initial guess
+    :param tol: allowed closeness for a solution
     :return: x
     """
     return zero(lambda x: f1(x)-f2(x), guess, tol)

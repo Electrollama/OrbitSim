@@ -15,6 +15,11 @@ RL Times:   01/01/18: 6575
 """
 
 def plot_orbit(orbit, res = 1.0, color='white', ls='--', marker=None):
+    """
+    Plot an orbit path on "plt" where the parent is at (0,0). [doesn't show]
+    :param orbit: Orbit object
+    :param res: resolution [arbitrary]
+    """
     n_points = res * (80 + int(800**min(orbit.ecc, 2.0)))
     amin, amax = orbit.angle_range()
     if amax <= amin:
@@ -37,6 +42,13 @@ def plot_orbit(orbit, res = 1.0, color='white', ls='--', marker=None):
         plt.plot(x_marker, y_marker, color=color, marker=marker, ls='None')
 
 def plot_body(body, xpos=0, ypos=0, labels=True):
+    """
+    Plot a body as a to-scale circle on "plt". [Doesn't show]
+    :param body: Body object (for size)
+    :param xpos: center x-position
+    :param ypos: center y-position
+    :param labels: Bool, adds the body name text
+    """
     to_scale = plt.Circle((xpos, ypos), body.size, color=body.color)
     fig = plt.gcf()
     ax = fig.gca()
@@ -45,8 +57,14 @@ def plot_body(body, xpos=0, ypos=0, labels=True):
     plt.text(xpos, ypos, body.name,
              va='bottom', ha='left', color='white')
 
-def plot_system(parent, time=0.0, labels=True):
-    Sats = parent.satellites
+def plot_system(system, time=0.0, labels=True):
+    """
+    Plot a parent body and its satellites to "plt" at a particular time. [Doesn't show]
+    :param system: Body object for the system
+    :param time: time in days
+    :param labels: Bool, adds the body name text
+    """
+    Sats = system.satellites
     print('Plotting satellites...')
     for planet in Sats.keys():
         p = Sats[planet]
@@ -55,11 +73,14 @@ def plot_system(parent, time=0.0, labels=True):
         print(p.name)
         plot_body(p, x, y, labels)
     print('Plotting parent...')
-    plot_body(parent)
+    plot_body(system)
     print('Displaying plot...')
     plt.title('Time: {}'.format(round(time, 1)))
 
 def plot_show():
+    """
+    Standard orbit plot formatting and showing.
+    """
     ax = plt.gca()
     ax.patch.set_facecolor('#0e0a16')
     plt.axis('equal')
@@ -67,4 +88,3 @@ def plot_show():
 
 xy_to_polar = lambda x, y: ((x**2 + y**2)**0.5, atan2(y, x))
 polar_to_xy = lambda r, theta: (r*cos(theta), r*sin(theta))
-

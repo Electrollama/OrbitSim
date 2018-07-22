@@ -1,7 +1,7 @@
 # OrbitSim
 ## My Vision
 This is currently a 2D orbit plotter on Python. 
-I hope to make this into a space program simulator game, where the user "programs" each probe. As opposed to simulating the craft in real time, like KSP does, time will go in steps as specified by the user. Once the user has programmed the mission plan, they can incorporate it into the game. The program will go through simulate each active mission plan until a particular time that the user specifies. Burns will be single events.
+I hope to make this into a space program simulator game, where the user "programs" each probe. As opposed to simulating the craft in real time, like KSP does, time will go in steps as specified by the user. Burns will be single events. Once the user has programmed the mission plan, they can incorporate it into the game. The program will go through simulate each active mission plan until a particular time that the user specifies. 
 
 I'd like the style to be minimalist, where a player can easily follow what's happening. If a feature adds complexity, I don't want it. For example, rather than designing a spacecraft by parts, I'm thinking of treating the spacecraft as a single object with resources and maybe cost. This will lessen the learning curve and encourage player imagination.
 

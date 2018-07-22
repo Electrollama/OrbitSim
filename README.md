@@ -7,7 +7,9 @@ I'd like the style to be minimalist, where a player can easily follow what's hap
 
 Abstraction is also important. I want the future user to have access to simple tools with which they can design their mission. I want this to be simple when possible but allow the user to have the standard freedoms of programming. On the other hand, I don't want the user to be able to just type "craft.orbit.periapsis = 25.23456e3" and have it be so. But they might want to know that information for their own program, maybe calculating how much to burn if they want apoapsis to be some value. Or another user might want to burn until apoapsis is some value without learning how to calculate that.
 
+## Contributing
 I'd like to try opening this up for other people to contribute to. It's one of the few time's I'm interested in the final product and not just the programming process. I'm hoping it'll be a game worth sharing and for real people to try out.
+I'm new at using GitHub, so bear with me while I figure out how to collaborate.
 
 ## Log 1: July 2018
 Currently this is a simple 2D Orbit Simulator. You can specify an orbit, calculate orbit elements, and most importantly calculate the state at a particular time. Alternately, you can specify a state at a particular time, and it'll calculate the orbit that it'll travel. 

@@ -1,4 +1,5 @@
 from Orbit import mk_Orbit
+from newton_method import minimize
 
 class Satellite:
     def __init__(self, body_dict, parent=None):
@@ -18,6 +19,15 @@ class Satellite:
 
     def __repr__(self):
         return '<{}>'.format(self.name)
+    
+    def soi(self):
+        """
+        Radius where the craft should go into rendezvous mode.
+        """
+        a = self.orbit.semi()
+        mu1 = # roughly the minimum for gravity to be considered
+        mu2 = self.orbit.mu  # from parent
+        return  a * (mu1 / mu2)**(2/5)
 
 
 class Body(Satellite):
@@ -33,6 +43,41 @@ class Body(Satellite):
         self.satellites = {} #populated when a satellite is initialized
         self.size = body_dict['size']
         self.mu = body_dict['mu']
+    
+    def soi(self):
+        """
+        The radius of the sphere of gravitational influence [Mm]
+        """
+        a = self.orbit.semi()
+        mu1 = self.mu
+        mu2 = self.orbit.mu  # from parent
+        return  a * (mu1 / mu2)**(2/5)
+    
+    def closest_approach(self, sat_orbit):
+        min_dist = lambda theta: abs(self.ra_dist() - sat_orbit.self.ra_dist())
+        return minimize(min_dist) + sat_orbit.lop
+    
+    def intersects(self, sat_orbit):
+        """
+        Tests if the body's orbit intersects a satellite's orbit. The satellite must not be a body. 
+        This does take time into account, only shape. This should only be run if the body and satellite share
+        the same parent.
+        :param sat_orbit: Orbit object of the satellite
+        """
+        # test radius range for a quick False result
+        ra1 = self.orbit.apo()
+        rp1 = self.orbit.peri
+        ra2 = sat_orbit.apo()
+        rp2 = sat_orbit.peri
+        if (rp1 - self.soi() > ra2) or (ra1 + self.soi() < ra1):
+            return False
+        # find the general closest approach
+        
+        # test the closest approach
+        if close_dist < self.soi():
+            return False
+        else:
+            return True
 
 
 class Craft(Satellite):

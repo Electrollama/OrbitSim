@@ -1,5 +1,5 @@
 from Orbit import mk_Orbit
-from newton_method import minimize
+from scipy.optimize import minimize_scalar
 
 class Satellite:
     def __init__(self, body_dict, parent=None):
@@ -25,7 +25,7 @@ class Satellite:
         Radius where the craft should go into rendezvous mode.
         """
         a = self.orbit.semi()
-        mu1 = # roughly the minimum for gravity to be considered
+        mu1 = 0.0005 # roughly the minimum for gravity to be considered
         mu2 = self.orbit.mu  # from parent
         return  a * (mu1 / mu2)**(2/5)
 
@@ -57,7 +57,7 @@ class Body(Satellite):
         min_dist = lambda theta: abs(self.ra_dist() - sat_orbit.self.ra_dist())
         return minimize(min_dist) + sat_orbit.lop
     
-    def intersects(self, sat_orbit):
+    def intersects(self, sat_orbit): #not yet implemented
         """
         Tests if the body's orbit intersects a satellite's orbit. The satellite must not be a body. 
         This does take time into account, only shape. This should only be run if the body and satellite share
@@ -72,7 +72,7 @@ class Body(Satellite):
         if (rp1 - self.soi() > ra2) or (ra1 + self.soi() < ra1):
             return False
         # find the general closest approach
-        
+        close_dist = 1 #minimize_scalar() #test code
         # test the closest approach
         if close_dist < self.soi():
             return False

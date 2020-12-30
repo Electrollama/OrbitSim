@@ -101,6 +101,8 @@ def test_param(param):
     orbit_family(Test_State, 'param', 10)
 
 if __name__ == "__main__":
-    System = load_system('Celestial_Bodies_RL')
+    System = load_system('System Tables/Bodies_RL.csv')
     planet_chart(System)
+    plot_show()
+    plot_system(System)
     plot_show()

@@ -1,6 +1,6 @@
 from math import isnan
 
-def zero(f, guess=0, tol=0, limit=None):
+def zero(f, guess=0., tol=1e-6, limit=None):
     """
     Return a guess of a zero of the function f, near guess.
     :param f: a differentiable function f(x)

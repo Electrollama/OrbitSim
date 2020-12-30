@@ -1,9 +1,13 @@
 from load import load_system
 from Satellite import Craft
 from Orbit import Orbit, State
-from orbit_plotter import plot_body, plot_orbit, plot_show, polar_to_xy, plt
+from orbit_plotter import *
 from numpy import arange
 from math import pi
+
+"""
+Procedures for making useful plots
+"""
 
 def orbit_family(Start, param, step, n=5, init_val=None):
     """
@@ -35,7 +39,6 @@ def orbit_family(Start, param, step, n=5, init_val=None):
         else: #x > init_val:
             c = 'green'
         plot_orbit(Orb, color=c, ls='-', marker='s')
-    plot_show()
 
 def test_burn(t_burn, v_burn):
     """
@@ -57,7 +60,6 @@ def test_burn(t_burn, v_burn):
     craft.burn([v_burn, 0.0], t_burn)
     plot_orbit(craft.orbit, color='#ffd1d1', ls='-')
     plt.plot([x_burn,], [y_burn,], 'ro')
-    plot_show()
 
 def planet_chart(System, start=0):
     """
@@ -66,23 +68,23 @@ def planet_chart(System, start=0):
     :param start: Start scaling according to the Nth planet.
             (useful for outer planets)
     """
-    Sats = System.satellites
+    Sats = System.bodies
     planets = [Sats[p_name] for p_name in Sats.keys()]
     semis = [(p.orbit.semi(), p) for p in planets]
     semis_sorted = list(semis)
     semis_sorted.sort()
     semis_sorted = semis_sorted[start:]
     scaling = 0.0
-    for i in range(len(semis_sorted) - 1):
-        curr, next = semis_sorted[i], semis_sorted[i+1]
-        d1, p1 = curr
-        d2, p2 = next
-        curr_scale = (p1.size + p2.size) * 1.5 / (d2-d1)
+    d1, s1 = 0.0, 0.0
+    for body in semis_sorted:
+        d2, p2 = body
+        s2 = p2.size
+        curr_scale = (s1 + s2) * 1.5 / (d2 - d1)
         scaling = max(scaling, curr_scale)
+        d1, s1 = d2, s2
     for p in planets:
         plot_body(p, p.orbit.semi()*scaling, 0.0)
     plot_body(System, -System.size, 0.0)
-    plot_show()
 
 def test_param(param):
     """
@@ -91,12 +93,14 @@ def test_param(param):
     :return:
     """
     System = load_system('Celestial_Bodies_KSP')
-    Test_Orbit = System.satellites['Kerbin'].orbit
+    Test_Orbit = System.bodies['Kerbin'].orbit
     Test_State = Test_Orbit.get_state(0.0)
     print(Test_State.Elements())
     print(Test_Orbit.Elements())
     plot_body(System)
     orbit_family(Test_State, 'param', 10)
 
-System = load_system('Celestial_Bodies_RL')
-planet_chart(System)
+if __name__ == "__main__":
+    System = load_system('Celestial_Bodies_RL')
+    planet_chart(System)
+    plot_show()

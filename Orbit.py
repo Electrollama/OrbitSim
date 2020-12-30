@@ -31,12 +31,13 @@ class Orbit:
     def __init__(self, load_dict):
         """
         Do not call directly. Instead call from mk_Orbit
-        :param load_dict: keys ecc, peri, t0, lop, mu
+        :param load_dict: a dictionary with orbital elements
+	            keys: ecc, peri, t0, lop (degrees), mu
         """
         self.ecc = load_dict['ecc']
         self.peri = load_dict['peri']
         self.t0 = load_dict['t0']
-        self.lop = load_dict['lop'] * pi / 180.0
+        self.lop = load_dict['lop'] * pi / 180.0  # degrees
         if load_dict['mu'] < 0:  # placeholder to show retrograde
             self.mu = -load_dict['mu']
             self.retro = True
@@ -98,11 +99,8 @@ class Orbit:
 
     def mean_anom(self, t):
         """mean anomaly at some time"""
-        t = t - self.t0
-        anom = t / self.period()
-        if not self.is_hyp:
-            anom = anom % 1
-        return 2 * pi * anom
+        t = (t - self.t0) % self.period()
+        return 2 * pi * (t / self.period())
 
     def ecc_anom(self, t):
         """Eccentric anomaly"""
@@ -116,7 +114,7 @@ class Orbit:
         cx = (1 - self.ecc) ** 0.5 * cos(ea / 2)
         cy = (1 + self.ecc) ** 0.5 * sin(ea / 2)
         ta = atan2(cy, cx) * 2
-        return ta % (2 * pi)
+        return ta
 
     def ang_momentum(self):
         """Orbit angular momentum (for calculations)"""
@@ -125,6 +123,10 @@ class Orbit:
             return -ang_momentum
         else:
             return ang_momentum
+
+    def energy(self):
+        """Specific total orbital energy, useful for relating altitude and speed"""
+        return -self.mu / (2. * self.semi())
 
     def slr(self):
         """Semi-latus Rectum (for calculations)"""
@@ -143,6 +145,21 @@ class Orbit:
         ta = self.true_anom(t)
         return self.hdist_ta(ta)
 
+    def dist_time(self, r):
+        """times at a particular altitude, return None of out of range."""
+        if r < self.peri or (not self.is_hyp and r > self.apo()):
+            return (None, None)
+        else:
+            objective = lambda t: self.hdist(t) - r
+            try:
+                return (zero(objective, self.t0 + self.period() / 4,
+                             limit=(self.t0, self.t0 + self.period() / 2)),
+                        zero(objective, self.t0 - self.period() / 4,
+                             limit=(self.t0 - self.period() / 2, self.t0))
+                        )
+            except RuntimeError:
+                return (None, None)
+
     def angle_range(self):
         """Range of angles for polar plotting"""
         return 0.0, 2 * pi
@@ -153,7 +170,7 @@ class Orbit:
         theta = ta + self.lop
         if self.retro:
             theta *= -1
-        r, anom = self.hdist_ta(ta), theta % (2 * pi)
+        r, anom = self.hdist_ta(ta), theta
         if isinstance(r, complex) or isinstance(anom, complex):
             raise ValueError('Complex value encountered in position.')
         return r, anom
@@ -202,7 +219,10 @@ class Hyperbolic(Orbit):
 
     def period(self):
         """Orbital period"""
-        return 2 * pi * (-self.semi() ** 3 / self.mu) ** 0.5
+        raise ValueError("Hyperbolic orbits have undefined period.")
+
+    def mean_anom(self, t):  # include 2*pi?
+        return (-self.semi() ** 3 / self.mu) ** 0.5 * (t - self.t0)
 
     def ecc_anom(self, t):
         """Eccentric anomaly"""
@@ -261,6 +281,9 @@ class Parabolic(Hyperbolic):
             result *= -1
         return result
 
+    def energy(self):
+        return 0
+
     def slr(self):
         """Semi-latus Rectum (for calculations)"""
         return 2 * self.peri
@@ -306,6 +329,22 @@ class State:
         long = round(self.long * 180.0 / pi)
         vel = round(self.speed)
         return '<STATE ({}, {}) v: {}>'.format(r, long, vel)
+
+    def __add__(self, other, subtr=False):
+        result = {}
+        rel_pos = add_polar(self.r, other.r,
+                            self.long, other.long, subtr=subtr)
+        result['r'], result['long'] = rel_pos
+        v1, av1 = self.vel_vect()
+        v2, av2 = other.vel_vect()
+        rel_vel = add_polar(v1, v2, av1, av2, subtr=subtr)
+        result['speed'], result['dir'] = rel_vel
+        result['time'] = self.time
+        result['mu'] = self.mu
+        return State(result)
+
+    def __sub__(self, other):
+        return self.add(other, subtr=True)
 
     def Elements(self):
         """
@@ -407,25 +446,6 @@ class State:
     def vel_vect(self):
         """Velocity vector in polar"""
         return self.speed, self.long + pi / 2 - self.dir
-
-    def get_relative(self, parent):
-        """
-        The state from another state's reference frame
-        :param parent: The state of the reference frame
-        :return: A new State object
-        """
-        result = {}
-        rel_pos = add_polar(self.r, parent.r,
-                            self.long, parent.long,
-                            subtr=True)
-        result['r'], result['long'] = rel_pos
-        v1, av1 = self.vel_vect()
-        v2, av2 = parent.vel_vect()
-        rel_vel = add_polar(v1, v2, av1, av2, subtr=True)
-        result['speed'], result['dir'] = rel_vel
-        result['time'] = self.mu
-        result['mu'] = self.mu
-        return State(result)
 
     def get_dist(self, parent):
         """

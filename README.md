@@ -11,6 +11,9 @@ Abstraction is also important. I want the future user to have access to simple t
 I'd like to try opening this up for other people to contribute to. It's one of the few time's I'm interested in the final product and not just the programming process. I'm hoping it'll be a game worth sharing and for real people to try out.
 I'm new at using GitHub, so bear with me while I figure out how to collaborate.
 
+## Log 2: December 2020
+I had made some changes in the past but didn't set up VCS correctly. I made a develop branch for committing minor changes and my progress on the Event Handler. This manages things that happen over time, such as a craft encountering a body. These events need to be predicted, and then put into a queue to feed out what event happens next. I will also start implementing "pytests" to make this more professional and help future debugging.
+
 ## Log 1: July 2018
 Currently this is a simple 2D Orbit Simulator. You can specify an orbit, calculate orbit elements, and most importantly calculate the state at a particular time. Alternately, you can specify a state at a particular time, and it'll calculate the orbit that it'll travel. 
 

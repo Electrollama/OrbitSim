@@ -1,0 +1,8 @@
+[
+  "test_positions.py::test_Kerbin_MA",
+  "test_positions.py::test_Kerbin_period",
+  "test_positions.py::test_Kerbin_pos",
+  "test_positions.py::test_Mun_period",
+  "test_positions.py::test_false",
+  "test_positions.py::test_planet_pos"
+]

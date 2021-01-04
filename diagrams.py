@@ -3,7 +3,6 @@ from Satellite import Craft
 from Orbit import Orbit, State
 from orbit_plotter import *
 from numpy import arange
-from math import pi
 
 """
 Procedures for making useful plots
@@ -101,8 +100,13 @@ def test_param(param):
     orbit_family(Test_State, 'param', 10)
 
 if __name__ == "__main__":
-    System = load_system('System Tables/Bodies_RL.csv')
+    System = load_system('System Tables/Bodies_KSP.csv')
     planet_chart(System)
     plot_show()
     plot_system(System)
+    plot_show()
+    Kerbin = System.bodies["Kerbin"]
+    planet_chart(Kerbin)
+    plot_show()
+    plot_system(Kerbin)
     plot_show()

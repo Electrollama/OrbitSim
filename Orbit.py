@@ -1,7 +1,7 @@
 from math import (sin, cos, tan, pi, exp, acos,
                   sinh, cosh, atan2, isnan, acosh,
                   atan)
-from newton_method import zero
+from scipy.optimize import fsolve, minimize_scalar
 
 epsilon = 1e-6 #Precision level
 is_zero = lambda x: abs(x) < epsilon
@@ -37,7 +37,7 @@ class Orbit:
         self.ecc = load_dict['ecc']
         self.peri = load_dict['peri']
         self.t0 = load_dict['t0']
-        self.lop = load_dict['lop'] * pi / 180.0  # degrees
+        self.lop = load_dict['lop'] * pi / 180.0  # radians
         if load_dict['mu'] < 0:  # placeholder to show retrograde
             self.mu = -load_dict['mu']
             self.retro = True
@@ -95,7 +95,7 @@ class Orbit:
 
     def period(self):
         """Orbital period"""
-        return 2 * pi * (self.semi() ** 3 / self.mu) ** 0.5
+        return 2. * pi * (self.semi() ** 3 / self.mu) ** 0.5
 
     def mean_anom(self, t):
         """mean anomaly at some time"""
@@ -103,13 +103,14 @@ class Orbit:
         return 2 * pi * (t / self.period())
 
     def ecc_anom(self, t):
-        """Eccentric anomaly"""
-        m = self.mean_anom(t)
-        f = lambda e: e - self.ecc * sin(e) - m
-        return zero(f, guess=m, tol=pi * epsilon)
+        """[iterative] Eccentric anomaly"""
+        ma = self.mean_anom(t)
+        f = lambda e: e - self.ecc * sin(e) - ma
+        solution = fsolve(f, ma)
+        return solution[0]
 
     def true_anom(self, t):
-        """Angle between periapsis and current position"""
+        """[iterative] Angle between periapsis and current position"""
         ea = self.ecc_anom(t)
         cx = (1 - self.ecc) ** 0.5 * cos(ea / 2)
         cy = (1 + self.ecc) ** 0.5 * sin(ea / 2)
@@ -141,22 +142,25 @@ class Orbit:
         return self.hdist_ta(theta - self.lop)
 
     def hdist(self, t):
-        """distance from the parent body's center at a particular time"""
+        """[iterative] distance from the parent body's center at a particular time"""
         ta = self.true_anom(t)
         return self.hdist_ta(ta)
 
     def dist_time(self, r):
-        """times at a particular altitude, return None of out of range."""
+        """[iterative] times at a particular altitude, return None of out of range."""
         if r < self.peri or (not self.is_hyp and r > self.apo()):
             return (None, None)
         else:
-            objective = lambda t: self.hdist(t) - r
+            objective = lambda t: abs(self.hdist(t) - r)
             try:
-                return (zero(objective, self.t0 + self.period() / 4,
-                             limit=(self.t0, self.t0 + self.period() / 2)),
-                        zero(objective, self.t0 - self.period() / 4,
-                             limit=(self.t0 - self.period() / 2, self.t0))
-                        )
+                result_up = minimize_scalar(objective, [self.t0, self.t0 + self.period() / 2],
+                                            method='bounded')
+                result_dwn = minimize_scalar(objective, [self.t0 - self.period() / 2, self.t0],
+                                            method='bounded')
+                if not (result_up.success and result_dwn.success):
+                    return (None, None)
+                else:
+                    return (result_up.x, result_dwn.x)
             except RuntimeError:
                 return (None, None)
 
@@ -165,7 +169,7 @@ class Orbit:
         return 0.0, 2 * pi
 
     def position(self, t):
-        """Polar coordinates at some time"""
+        """[iterative] Polar coordinates at some time"""
         ta = self.true_anom(t)
         theta = ta + self.lop
         if self.retro:
@@ -176,7 +180,7 @@ class Orbit:
         return r, anom
 
     def get_state(self, t):
-        """For a particular time, get the object's state vector."""
+        """[iterative] For a particular time, get the object's state vector."""
         mu = self.mu
         r, long = self.position(t)
         v = ((2.0 / r - 1.0 / self.semi()) * mu) ** 0.5
@@ -227,8 +231,9 @@ class Hyperbolic(Orbit):
     def ecc_anom(self, t):
         """Eccentric anomaly"""
         f = lambda e: self.ecc * sinh(e) - e - self.mean_anom(t)
-        return zero(f, guess=self.mean_anom(t),
-                    tol=pi * epsilon)
+        #return zero(f, guess=self.mean_anom(t), tol=pi * epsilon)
+        solution = fsolve(f, self.mean_anom(t))
+        return solution[0]
 
     def true_anom(self, t):
         """Angle between the current position and periapsis"""

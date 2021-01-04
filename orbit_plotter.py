@@ -114,11 +114,12 @@ def plot_show():
 
 
 def window(new_xmin, new_xmax, new_ymin, new_ymax):
-    xmin, xmax = plt.axes().get_xlim()
-    ymin, ymax = plt.axes().get_ylim()
-    plt.axes().set_xlim(min(xmin, new_xmin),
+    axes = plt.gca()
+    xmin, xmax = axes.get_xlim()
+    ymin, ymax = axes.get_ylim()
+    axes.set_xlim(min(xmin, new_xmin),
                         max(xmax, new_xmax))
-    plt.axes().set_ylim(min(ymin, new_ymin),
+    axes.set_ylim(min(ymin, new_ymin),
                         max(ymax, new_ymax))
 
 xy_to_polar = lambda x, y: ((x**2 + y**2)**0.5, atan2(y, x))

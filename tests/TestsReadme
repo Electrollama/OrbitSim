@@ -1,0 +1,4 @@
+Instructions:
+1) In Pycharm, open the terminal
+2) cd tests; ls to check contents
+3) run "pytest test_{name}.py"

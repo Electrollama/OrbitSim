@@ -1,33 +1,32 @@
 from Orbit import mk_Orbit
-from scipy.optimize import minimize_scalar
+
 
 class Satellite:
     def __init__(self, body_dict, parent=None):
         """
         A generic object in space with an orbit.
-        :param body_dict: See load.py
+        :param body_dict: parameters
+	            keys: name, color, orbit (dict, see Orbit.py)
         :param parent: the parent Body object
         """
         self.name = body_dict['name']
-        self.orbit = mk_Orbit(body_dict['orbit'])
+        if parent is None:
+            self.orbit = None
+        else:
+            body_dict['orbit']['mu'] = parent.mu
+            self.orbit = mk_Orbit(body_dict['orbit'])
         self.color = body_dict['color']
-        #Double-link with parent
+        # Double-link with parent
         self.parent = parent
         if (self.parent is not None and
                 isinstance(self.parent, Body)):
-            self.parent.satellites[self.name] = self
+            if isinstance(self, Body):
+                self.parent.bodies[self.name] = self
+            elif isinstance(self, Craft):
+                self.parent.crafts[self.name] = self
 
     def __repr__(self):
         return '<{}>'.format(self.name)
-    
-    def soi(self):
-        """
-        Radius where the craft should go into rendezvous mode.
-        """
-        a = self.orbit.semi()
-        mu1 = 0.0005 # roughly the minimum for gravity to be considered
-        mu2 = self.orbit.mu  # from parent
-        return  a * (mu1 / mu2)**(2/5)
 
 
 class Body(Satellite):
@@ -38,54 +37,40 @@ class Body(Satellite):
     If density is not known, assume 1.0
     plus Gilly as an exception?
     """
+
     def __init__(self, body_dict, parent=None):
+        """
+        load a Body object
+        :param body_dict:
+            keys: name, color, size, mu, orbit (dict, see Orbit.py)
+        :param parent: a loaded
+        """
         Satellite.__init__(self, body_dict, parent)
-        self.satellites = {} #populated when a satellite is initialized
+        self.bodies = {}  # populated when a satellite is initialized
+        self.satellites = {}
         self.size = body_dict['size']
         self.mu = body_dict['mu']
-    
-    def soi(self):
-        """
-        The radius of the sphere of gravitational influence [Mm]
-        """
-        a = self.orbit.semi()
-        mu1 = self.mu
-        mu2 = self.orbit.mu  # from parent
-        return  a * (mu1 / mu2)**(2/5)
-    
-    def closest_approach(self, sat_orbit):
-        min_dist = lambda theta: abs(self.ra_dist() - sat_orbit.self.ra_dist())
-        return minimize(min_dist) + sat_orbit.lop
-    
-    def intersects(self, sat_orbit): #not yet implemented
-        """
-        Tests if the body's orbit intersects a satellite's orbit. The satellite must not be a body. 
-        This does take time into account, only shape. This should only be run if the body and satellite share
-        the same parent.
-        :param sat_orbit: Orbit object of the satellite
-        """
-        # test radius range for a quick False result
-        ra1 = self.orbit.apo()
-        rp1 = self.orbit.peri
-        ra2 = sat_orbit.apo()
-        rp2 = sat_orbit.peri
-        if (rp1 - self.soi() > ra2) or (ra1 + self.soi() < ra1):
-            return False
-        # find the general closest approach
-        close_dist = 1 #minimize_scalar() #test code
-        # test the closest approach
-        if close_dist < self.soi():
-            return False
+        if parent is None:
+            self.soi = self.size * 2.
         else:
-            return True
+            self.soi = self.orbit.semi() * (self.mu / self.parent.mu) ** (2 / 5)
+            if self.parent.parent is None:  # adjust relevant range of the system
+                # update parent soi
+                if self.orbit.is_hyp:
+                    parent.soi = max(parent.soi, 1.5 * self.orbit.peri)
+                else:
+                    parent.soi = max(parent.soi, 1.5 * self.orbit.apo())
 
 
 class Craft(Satellite):
-    res_types = ['delta-v',]
+    """
+    A man-made satellite (space craft) that can change orbit
+    """
+    res_types = ['delta-v', ]
 
     def __init__(self, body_dict, parent=None):
         Satellite.__init__(self, body_dict, parent)
-        self.resources ={}
+        self.resources = {}
         for r in self.res_types:
             self.resources[r] = (0, 0)
 
@@ -98,7 +83,7 @@ class Craft(Satellite):
         :param cap_adj: change in max quantity
         :return: The resulting change in quantity
         """
-        #adjust capacity
+        # adjust capacity
         if name in self.res_types:
             curr, cap = self.resources[name]
             cap += cap_adj
@@ -106,7 +91,7 @@ class Craft(Satellite):
             self.res_types.append(name)
             curr, cap = 0.0, cap_adj
         self.resources[name] = (curr, cap)
-        #adjust current quantity
+        # adjust current quantity
         prev = curr
         if quant_adj == 'full':
             self.resources[name] = (cap, cap)
@@ -116,7 +101,7 @@ class Craft(Satellite):
             new = min(max(curr + quant_adj, 0.0), cap)
             self.resources[name] = (new, cap)
         curr = self.resources[name][0]
-        return curr - prev #true change in the resource
+        return curr - prev  # true change in the resource
 
     def burn(self, dv_vect, t):
         """
@@ -124,11 +109,11 @@ class Craft(Satellite):
         :param dv_vect: vector representing the burn (2-value list)
         :param t: time of burn [days]
         """
-        #manage resources
-        dv_vect = list(dv_vect) #make non-mutable
+        # manage resources
+        dv_vect = list(dv_vect)  # make non-mutable
         dv_available = self.adjust_res('delta-v', -dv_vect[0])
         dv_vect[0] = -dv_available
-        #change the orbit
+        # change the orbit
         state = self.orbit.get_state(t)
         state.boost(dv_vect)
         self.orbit = state.get_orbit()

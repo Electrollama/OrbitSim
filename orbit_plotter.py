@@ -20,7 +20,7 @@ def plot_orbit(orbit, res = 1.0, color='white', ls='--', marker=None):
     :param orbit: Orbit object
     :param res: resolution [proportional]
     """
-    n_points = res * (80 + int(800**min(orbit.ecc, 2.0)))
+    n_points = round(res * (80 + 800**min(orbit.ecc, 2.0)))
     amin, amax = orbit.angle_range()
     if amax <= amin:
         amin -= 2*pi

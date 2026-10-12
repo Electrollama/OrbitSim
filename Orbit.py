@@ -1,17 +1,70 @@
-from math import (sin, cos, tan, pi, exp, acos,
-                  sinh, cosh, atan2, isnan, acosh,
-                  atan)
-from scipy.optimize import fsolve, minimize_scalar
+from math import (
+    sin, cos, tan, pi, exp, acos,
+    sinh, cosh, atan2, isnan, acosh,
+    atan, sqrt
+)
 
-epsilon = 1e-6 #Precision level
+epsilon = 1e-6  # Precision level
 is_zero = lambda x: abs(x) < epsilon
-"""
-lop: angle of periapsis
-t0: a time when the object was at periapsis
-If retrograde, negative angles when plotting and converting to state,
-   and in calculating angular momentum (negative).
-angles are in radians and in the prograde direction, except in position and state
-"""
+
+try:
+    from scipy.optimize import fsolve as _scipy_fsolve, minimize_scalar as _scipy_minimize_scalar
+    _HAS_SCIPY = True
+except ImportError:
+    _HAS_SCIPY = False
+
+
+def solve_kepler_elliptic(m, ecc, tol=1e-12, max_iter=50):
+    """
+    Solve Kepler's equation for eccentric anomaly E:
+    E - ecc * sin(E) = m
+    Uses Halley's method for rapid, third-order convergence.
+    """
+    m = m % (2 * pi)
+    # Good initial guess
+    if ecc < 0.8:
+        e_val = m
+    else:
+        e_val = pi if m > pi else m + ecc * sin(m)
+
+    for _ in range(max_iter):
+        f = e_val - ecc * sin(e_val) - m
+        if abs(f) < tol:
+            return e_val
+        f_prime = 1.0 - ecc * cos(e_val)
+        f_double_prime = ecc * sin(e_val)
+        # Halley step
+        delta = f / (f_prime - 0.5 * f * f_double_prime / f_prime)
+        e_val -= delta
+        if abs(delta) < tol:
+            return e_val
+    return e_val
+
+
+def solve_kepler_hyperbolic(m, ecc, tol=1e-12, max_iter=60):
+    """
+    Solve Kepler's equation for hyperbolic anomaly F:
+    ecc * sinh(F) - F = m
+    """
+    # Initial guess
+    if abs(m) < 1.0:
+        f_val = m / (ecc - 1.0)
+    else:
+        f_val = (1.0 if m >= 0 else -1.0) * (acosh(abs(m) / ecc + 1.0))
+
+    for _ in range(max_iter):
+        f = ecc * sinh(f_val) - f_val - m
+        if abs(f) < tol:
+            return f_val
+        f_prime = ecc * cosh(f_val) - 1.0
+        f_double_prime = ecc * sinh(f_val)
+        # Halley step
+        denom = f_prime - 0.5 * f * f_double_prime / f_prime
+        delta = f / denom if abs(denom) > 1e-14 else f / f_prime
+        f_val -= delta
+        if abs(delta) < tol:
+            return f_val
+    return f_val
 
 
 class Orbit:
@@ -26,307 +79,238 @@ class Orbit:
     """
     is_hyp = False
     is_parab = False
-    padding = 0.0  # for min and max plotted angle
+    padding = 0.0
 
     def __init__(self, load_dict):
-        """
-        Do not call directly. Instead call from mk_Orbit
-        :param load_dict: a dictionary with orbital elements
-	            keys: ecc, peri, t0, lop (degrees), mu
-        """
-        self.ecc = load_dict['ecc']
-        self.peri = load_dict['peri']
-        self.t0 = load_dict['t0']
-        self.lop = load_dict['lop'] * pi / 180.0  # radians
-        if load_dict['mu'] < 0:  # placeholder to show retrograde
-            self.mu = -load_dict['mu']
+        self.ecc = float(load_dict['ecc'])
+        self.peri = float(load_dict['peri'])
+        self.t0 = float(load_dict['t0'])
+        self.lop = float(load_dict['lop']) * pi / 180.0
+        if load_dict['mu'] < 0:
+            self.mu = float(-load_dict['mu'])
             self.retro = True
         else:
-            self.mu = load_dict['mu']
+            self.mu = float(load_dict['mu'])
             self.retro = False
 
     def __repr__(self):
-        result = ''
         size = (round(param) for param in [self.peri, self.apo()])
-        result += '<ORBIT ({},{})>'.format(*size)
-        return result
+        return '<ORBIT ({},{})>'.format(*size)
 
     def Elements(self):
-        """
-        Write a dictionary with orbital elements
-        """
-        if self.retro:
-            mu = self.mu * -1.0
-        else:
-            mu = self.mu
-        return {'ecc': self.ecc,
-                'peri': self.peri,
-                'lop': self.lop*180/pi,
-                't0': self.t0,
-                'mu': self.mu}
+        mu = -self.mu if self.retro else self.mu
+        return {
+            'ecc': self.ecc,
+            'peri': self.peri,
+            'lop': self.lop * 180.0 / pi,
+            't0': self.t0,
+            'mu': mu
+        }
 
     def get_element(self, param):
-        """
-        Obtain an element from the orbit.
-        """
         return self.Elements()[param]
 
     def set_element(self, param, new_val):
-        """
-        Change an element in the orbit
-        :param param: name of the parameter to change
-        :param new_val: new value
-        :return: a new orbit with the changed element
-        """
-        Elems = self.Elements()
-        Elems[param] = new_val
-        return mk_Orbit(Elems)
+        elems = self.Elements()
+        elems[param] = new_val
+        return mk_Orbit(elems)
 
     def apo(self):
-        """apoapsis"""
-        return self.semi() * (1 + self.ecc)
+        return self.semi() * (1.0 + self.ecc)
 
     def semi(self):
-        """Semimajor axis"""
         if self.is_parab:
-            return -1 * self.peri / epsilon  # infinity
-        result = self.peri / (1.0 - self.ecc)
-        return result  # hyperbolic : negative answer
+            return -1.0 * self.peri / epsilon
+        return self.peri / (1.0 - self.ecc)
 
     def period(self):
-        """Orbital period"""
-        return 2. * pi * (self.semi() ** 3 / self.mu) ** 0.5
+        return 2.0 * pi * sqrt((self.semi() ** 3) / self.mu)
 
     def mean_anom(self, t):
-        """mean anomaly at some time"""
-        t = (t - self.t0) % self.period()
-        return 2 * pi * (t / self.period())
+        p = self.period()
+        t_eff = (t - self.t0) % p
+        return 2.0 * pi * (t_eff / p)
 
     def ecc_anom(self, t):
-        """[iterative] Eccentric anomaly"""
         ma = self.mean_anom(t)
-        f = lambda e: e - self.ecc * sin(e) - ma
-        solution = fsolve(f, ma)
-        return solution[0]
+        return solve_kepler_elliptic(ma, self.ecc)
 
     def true_anom(self, t):
-        """[iterative] Angle between periapsis and current position"""
         ea = self.ecc_anom(t)
-        cx = (1 - self.ecc) ** 0.5 * cos(ea / 2)
-        cy = (1 + self.ecc) ** 0.5 * sin(ea / 2)
-        ta = atan2(cy, cx) * 2
-        return ta
+        cx = sqrt(max(0.0, 1.0 - self.ecc)) * cos(ea / 2.0)
+        cy = sqrt(1.0 + self.ecc) * sin(ea / 2.0)
+        return atan2(cy, cx) * 2.0
 
     def ang_momentum(self):
-        """Orbit angular momentum (for calculations)"""
-        ang_momentum = (self.mu * self.semi() * (1 - self.ecc ** 2.0)) ** 0.5
-        if self.retro:
-            return -ang_momentum
-        else:
-            return ang_momentum
+        h = sqrt(self.mu * self.semi() * (1.0 - self.ecc ** 2))
+        return -h if self.retro else h
 
     def energy(self):
-        """Specific total orbital energy, useful for relating altitude and speed"""
-        return -self.mu / (2. * self.semi())
+        return -self.mu / (2.0 * self.semi())
 
     def slr(self):
-        """Semi-latus Rectum (for calculations)"""
-        return self.semi() * (1 - self.ecc ** 2)
+        return self.semi() * (1.0 - self.ecc ** 2)
 
     def hdist_ta(self, anom):
-        """distance for a particular true anomaly"""
-        return self.slr() / (1 + self.ecc * cos(anom))
+        denom = 1.0 + self.ecc * cos(anom)
+        return self.slr() / denom
 
     def hdist_theta(self, theta):
-        """distance for a particular polar angle"""
         return self.hdist_ta(theta - self.lop)
 
     def hdist(self, t):
-        """[iterative] distance from the parent body's center at a particular time"""
         ta = self.true_anom(t)
         return self.hdist_ta(ta)
 
     def dist_time(self, r):
-        """[iterative] times at a particular altitude, return None of out of range."""
+        """Times at a particular altitude, return (None, None) if out of range."""
         if r < self.peri or (not self.is_hyp and r > self.apo()):
             return (None, None)
-        else:
-            objective = lambda t: abs(self.hdist(t) - r)
-            try:
-                result_up = minimize_scalar(objective, [self.t0, self.t0 + self.period() / 2],
-                                            method='bounded')
-                result_dwn = minimize_scalar(objective, [self.t0 - self.period() / 2, self.t0],
-                                            method='bounded')
-                if not (result_up.success and result_dwn.success):
-                    return (None, None)
-                else:
-                    return (result_up.x, result_dwn.x)
-            except RuntimeError:
-                return (None, None)
+        # Exact solution via true anomaly
+        # r = p / (1 + e*cos(nu)) -> cos(nu) = (p/r - 1) / e
+        val = (self.slr() / r - 1.0) / self.ecc
+        val = max(-1.0, min(1.0, val))
+        nu = acos(val)
+        # Convert to eccentric anomaly
+        cx = (1.0 - self.ecc) ** 0.5 * cos(nu / 2.0)
+        cy = (1.0 + self.ecc) ** 0.5 * sin(nu / 2.0)
+        ea = atan2(cy, cx) * 2.0
+        ma = ea - self.ecc * sin(ea)
+        dt = (ma / (2.0 * pi)) * self.period()
+        return (self.t0 + dt, self.t0 - dt)
 
     def angle_range(self):
-        """Range of angles for polar plotting"""
-        return 0.0, 2 * pi
+        return 0.0, 2.0 * pi
 
     def position(self, t):
-        """[iterative] Polar coordinates at some time"""
         ta = self.true_anom(t)
         theta = ta + self.lop
         if self.retro:
-            theta *= -1
-        r, anom = self.hdist_ta(ta), theta
-        if isinstance(r, complex) or isinstance(anom, complex):
-            raise ValueError('Complex value encountered in position.')
-        return r, anom
+            theta = -theta
+        r = self.hdist_ta(ta)
+        return r, theta
 
     def get_state(self, t):
-        """[iterative] For a particular time, get the object's state vector."""
-        mu = self.mu
         r, long = self.position(t)
-        v = ((2.0 / r - 1.0 / self.semi()) * mu) ** 0.5
-        temp = self.ang_momentum() / (r * v)
+        v = sqrt(max(0.0, (2.0 / r - 1.0 / self.semi()) * self.mu))
+        temp = self.ang_momentum() / (r * v) if (r * v) > 0 else 1.0
         direction = acos(min(max(temp, -1.0), 1.0))
-        if self.true_anom(t) > pi:
-            direction *= -1  # returning to periapsis
-        state_dict = {'r': r,
-                      'speed': v,
-                      'dir': direction* 180 / pi,
-                      'long': long * 180 / pi,  # polar angle
-                      'mu': mu,
-                      'time': t}
-        if isinstance(r, complex) or isinstance(v, complex):
-            raise ValueError
+        if self.true_anom(t) % (2.0 * pi) > pi:
+            direction *= -1.0
+        state_dict = {
+            'r': r,
+            'speed': v,
+            'dir': direction * 180.0 / pi,
+            'long': long * 180.0 / pi,
+            'mu': self.mu,
+            'time': t
+        }
         return State(state_dict)
+
 
 class Hyperbolic(Orbit):
     """
-    A special case for hyperbolic orbits, requiring some different calculations
-    and considerations.
+    A special case for hyperbolic orbits.
     """
     is_hyp = True
-    padding = pi / 25
+    padding = pi / 25.0
 
     def __init__(self, load_dict):
-        Orbit.__init__(self, load_dict)
+        super().__init__(load_dict)
 
     def __repr__(self):
-        result = ''
         peri = round(self.peri)
         angle = round(self.esc_angle(), 1)
-        result += '<FLYBY:({},{})>'.format(peri, angle)
-        return result
+        return '<FLYBY:({},{})>'.format(peri, angle)
 
     def esc_angle(self):
-        """Angle between incoming and outgoing velocity, relative to the parent"""
-        return 2 * acos(-1 / self.ecc)
+        return 2.0 * acos(-1.0 / self.ecc)
 
     def period(self):
-        """Orbital period"""
         raise ValueError("Hyperbolic orbits have undefined period.")
 
-    def mean_anom(self, t):  # include 2*pi?
-        return (-self.semi() ** 3 / self.mu) ** 0.5 * (t - self.t0)
+    def mean_anom(self, t):
+        n = sqrt(-self.mu / (self.semi() ** 3))
+        return n * (t - self.t0)
 
     def ecc_anom(self, t):
-        """Eccentric anomaly"""
-        f = lambda e: self.ecc * sinh(e) - e - self.mean_anom(t)
-        #return zero(f, guess=self.mean_anom(t), tol=pi * epsilon)
-        solution = fsolve(f, self.mean_anom(t))
-        return solution[0]
+        ma = self.mean_anom(t)
+        return solve_kepler_hyperbolic(ma, self.ecc)
 
     def true_anom(self, t):
-        """Angle between the current position and periapsis"""
         ea = self.ecc_anom(t)
-        cx = (self.ecc - 1) ** 0.5 * cosh(ea / 2)
-        cy = (self.ecc + 1) ** 0.5 * sinh(ea / 2)
-        ta = atan2(cy, cx) * 2
-        return ta % (2 * pi)
+        cx = sqrt(self.ecc - 1.0) * cosh(ea / 2.0)
+        cy = sqrt(self.ecc + 1.0) * sinh(ea / 2.0)
+        ta = atan2(cy, cx) * 2.0
+        return ta % (2.0 * pi)
 
     def ang_momentum(self):
-        """Angular momentum (for calculations)"""
         if self.semi() >= 0:
             raise TypeError('Non-hyperbolic treated as hyperbolic')
-        result = (self.mu * self.slr()) ** 0.5
-        if self.retro:
-            result *= -1
-        return result
+        h = sqrt(self.mu * self.slr())
+        return -h if self.retro else h
 
     def angle_range(self):
-        """Polar angle range for plotting. Note a hyperbola does not
-        occupy all angles."""
         theta = self.esc_angle()
-        amin = (self.lop - theta / 2 + self.padding) % (2 * pi)
-        amax = (self.lop + theta / 2 - self.padding) % (2 * pi)
+        amin = (self.lop - theta / 2.0 + self.padding) % (2.0 * pi)
+        amax = (self.lop + theta / 2.0 - self.padding) % (2.0 * pi)
         if self.retro:
             return -amax, -amin
-        else:
-            return amin, amax
+        return amin, amax
 
 
 class Parabolic(Hyperbolic):
     """
-    A special case for nearly parabolic orbits to include some
-    needed, some handy equation modifications.
+    Parabolic orbit using Barker's Equation.
     """
     is_parab = True
-    padding = pi / 10
+    padding = pi / 10.0
 
     def __init__(self, load_dict):
-        Orbit.__init__(self, load_dict)
+        super().__init__(load_dict)
 
     def semi(self):
-        """Semimajor axis"""
-        return None  # -1*self.peri / epsilon  # infinity
+        return None
 
     def ang_momentum(self):
-        """orbit angular momentum (for calculations)"""
-        result = (self.mu * self.slr()) ** 0.5
-        if self.retro:
-            result *= -1
-        return result
+        h = sqrt(self.mu * self.slr())
+        return -h if self.retro else h
 
     def energy(self):
-        return 0
+        return 0.0
 
     def slr(self):
-        """Semi-latus Rectum (for calculations)"""
-        return 2 * self.peri
+        return 2.0 * self.peri
 
     def true_anom(self, t):
-        """Angle between the current position and periapsis,
-        using Barker's Equation for an analytic solution."""
-        A = 3 / 2 * (self.mu / (2 * self.peri ** 3)) ** 0.5 * (t - self.t0)
-        B = (A + (A ** 2 + 1) ** 0.5) ** (1 / 3)
-        return 2 * atan(B - 1 / B) % (2 * pi)
+        a_val = 1.5 * sqrt(self.mu / (2.0 * self.peri ** 3)) * (t - self.t0)
+        b_val = (a_val + sqrt(a_val ** 2 + 1.0)) ** (1.0 / 3.0)
+        return 2.0 * atan(b_val - 1.0 / b_val) % (2.0 * pi)
 
     def angle_range(self):
-        """Range of angles for polar plotting. Note that a parabolic
-        orbit occupies all angles, but the altitude is very large
-        away from periapsis."""
-        amin = (self.lop - pi + self.padding) % (2 * pi)
-        amax = (self.lop + pi - self.padding) % (2 * pi)
+        amin = (self.lop - pi + self.padding) % (2.0 * pi)
+        amax = (self.lop + pi - self.padding) % (2.0 * pi)
         return amin, amax
 
 
 class State:
     """
     The orbital state vectors representing a location along an orbit.
-    r - distance [Mm] from the parent's center
+    r - distance [Mm] from parent center
     speed - magnitude of velocity [Mm/day]
-    dir - angle of velocity [rad]
-    long - longitude (angle) [rad] of position relative to the
-        reference direction
-    mu - parent's standard gravitational parameter [Mm^2/day^2]
-    time - time at which the position was taken
+    dir - flight path angle [rad]
+    long - position longitude [rad]
+    mu - gravitational parameter [Mm^2/day^2]
+    time - epoch time [days]
     """
 
     def __init__(self, load_dict):
-        self.r = load_dict['r']
-        self.speed = load_dict['speed']
-        self.dir = load_dict['dir']* pi / 180
-        self.long = load_dict['long'] * pi / 180
-        self.mu = load_dict['mu']
-        self.time = load_dict['time']
+        self.r = float(load_dict['r'])
+        self.speed = float(load_dict['speed'])
+        self.dir = float(load_dict['dir']) * pi / 180.0
+        self.long = float(load_dict['long']) * pi / 180.0
+        self.mu = float(load_dict['mu'])
+        self.time = float(load_dict['time'])
 
     def __repr__(self):
         r = round(self.r)
@@ -336,176 +320,155 @@ class State:
 
     def __add__(self, other, subtr=False):
         result = {}
-        rel_pos = add_polar(self.r, other.r,
-                            self.long, other.long, subtr=subtr)
-        result['r'], result['long'] = rel_pos
+        r_rel, long_rel = add_polar(self.r, other.r, self.long, other.long, subtr=subtr)
+        result['r'] = r_rel
+        result['long'] = long_rel * 180.0 / pi
         v1, av1 = self.vel_vect()
         v2, av2 = other.vel_vect()
-        rel_vel = add_polar(v1, v2, av1, av2, subtr=subtr)
-        result['speed'], result['dir'] = rel_vel
+        v_rel, av_rel = add_polar(v1, v2, av1, av2, subtr=subtr)
+        result['speed'] = v_rel
+        # Convert absolute velocity direction to flight path angle
+        dir_rel = (long_rel + pi / 2.0 - av_rel) % (2.0 * pi)
+        if dir_rel > pi:
+            dir_rel -= 2.0 * pi
+        result['dir'] = dir_rel * 180.0 / pi
         result['time'] = self.time
         result['mu'] = self.mu
         return State(result)
 
     def __sub__(self, other):
-        return self.add(other, subtr=True)
+        return self.__add__(other, subtr=True)
 
     def Elements(self):
-        """
-        Write a dictionary with state elements
-        """
-        return {'r': self.r,
-                'speed': self.speed,
-                'dir': self.dir * 180.0 / pi,
-                'long': self.long * 180 / pi,
-                'mu': self.mu,
-                'time': self.time}
+        return {
+            'r': self.r,
+            'speed': self.speed,
+            'dir': self.dir * 180.0 / pi,
+            'long': self.long * 180.0 / pi,
+            'mu': self.mu,
+            'time': self.time
+        }
 
     def get_element(self, param):
-        """
-        Obtain an element from the state.
-        """
         return self.Elements()[param]
 
     def set_element(self, param, new_val):
-        """
-        Change an element in the state
-        :param param: name of the parameter to change
-        :param new_val: new value
-        :return: a new state with the changed element
-        """
-        Elems = self.Elements()
-        Elems[param] = new_val
-        return State(Elems)
+        elems = self.Elements()
+        elems[param] = new_val
+        return State(elems)
 
     def ecc_vector(self):
-        """Eccentricity vector in polar (for calculations)"""
-        rx, ry, vx, vy = (self.r * cos(self.long), self.r * sin(self.long),
-                          - self.speed * sin(self.long - self.dir),
-                          self.speed * cos(self.long - self.dir))
+        rx = self.r * cos(self.long)
+        ry = self.r * sin(self.long)
+        vx = -self.speed * sin(self.long - self.dir)
+        vy = self.speed * cos(self.long - self.dir)
         k0 = rx * vx + ry * vy
         ecc_x = ((self.speed ** 2 - self.mu / self.r) * rx - k0 * vx) / self.mu
         ecc_y = ((self.speed ** 2 - self.mu / self.r) * ry - k0 * vy) / self.mu
         return xy_to_polar(ecc_x, ecc_y)
 
     def get_orbit(self):
-        """
-        Finds the orbit corresponding to the state.
-        Based on Fundamentals of Astrodynamics and Applications, by Vallado, 2007.
-        :return: Orbit object
-        """
         orbit = dict()
         self.dir = self.dir % (2.0 * pi)
-        if abs(pi - self.dir) < pi / 2:  # test if retrograde; make corrections
+        if abs(pi - self.dir) < pi / 2.0:
             self.dir = pi - self.dir
             self.long = -self.long
-            orbit['mu'] = self.mu * -1
+            orbit['mu'] = -self.mu
         else:
             orbit['mu'] = self.mu
+
         orbit['ecc'], orbit['lop'] = self.ecc_vector()
-        orbit['lop'] = orbit['lop'] * 180 / pi
+        orbit['lop'] = orbit['lop'] * 180.0 / pi
         energy = (self.speed ** 2 / 2.0) - (self.mu / self.r)
-        k1 = -2.0 * energy / self.mu  # 1 / semi
-        if is_zero(orbit['ecc']):  # Circular
-            orbit['lop'] = self.long*180/pi
-            orbit['peri'] = 1 / k1  # semimajor axis
+        k1 = -2.0 * energy / self.mu
+
+        rx = self.r * cos(self.long)
+        ry = self.r * sin(self.long)
+        vx = -self.speed * sin(self.long - self.dir)
+        vy = self.speed * cos(self.long - self.dir)
+        radial_v = rx * vx + ry * vy  # r . v
+
+        if is_zero(orbit['ecc']):
+            orbit['lop'] = self.long * 180.0 / pi
+            orbit['peri'] = 1.0 / k1
             orbit['ecc'] = 0.0
             orbit['t0'] = self.time
-        elif is_zero(k1):  # if parabolic
+        elif is_zero(k1):
             ang_momentum = self.r * self.speed * cos(self.dir)
-            # print('Parabolic')
-            orbit['peri'] = ang_momentum ** 2 / (2 * self.mu)  # parabolic only
-            ta = self.long - orbit['lop']
-            # Apply Barker's equation
-            D = tan(ta / 2)
-            dt = 0.5 * (ang_momentum ** 3 / self.mu ** 2) * (D + D ** 3 / 3)
+            orbit['peri'] = ang_momentum ** 2 / (2.0 * self.mu)
+            ta = self.long - orbit['lop'] * pi / 180.0
+            d_val = tan(ta / 2.0)
+            dt = 0.5 * (ang_momentum ** 3 / self.mu ** 2) * (d_val + (d_val ** 3) / 3.0)
             orbit['t0'] = self.time - dt
-        elif orbit['ecc'] > 1: # hyperbolic
-            semi = 1 / k1
-            orbit['peri'] = semi * (1 - orbit['ecc'])
-            # convert to mean anomaly
-            k2 = self.r * k1
-            ecc_anom = acosh((1 - k2) / orbit['ecc'])
-            if self.dir < 0 or self.dir >= pi * 3 / 4:
-                ecc_anom *= -1
-            m_anom = orbit['ecc'] * sinh(ecc_anom) - ecc_anom  # in revolutions
-            n = (-self.mu / semi ** 3) ** 0.5
-            orbit['t0'] = self.time - m_anom / n
-        else:  # Elliptical
+        elif orbit['ecc'] > 1.0:
             semi = 1.0 / k1
-            orbit['peri'] = semi * (1 - orbit['ecc'])
-            # convert to mean anomaly
+            orbit['peri'] = semi * (1.0 - orbit['ecc'])
             k2 = self.r * k1
-            temp = (1.0 - k2) / orbit['ecc']
-            temp = min(max(temp, -1.0), 1.0)
-            ecc_anom = acos(temp)  # range 0 to pi
-            if self.dir < 0 or self.dir >= pi * 3 / 4:  # test if returning to periapsis
-                ecc_anom *= -1
+            ecc_anom = acosh(max(1.0, (1.0 - k2) / orbit['ecc']))
+            if radial_v < 0:
+                ecc_anom = -abs(ecc_anom)
+            else:
+                ecc_anom = abs(ecc_anom)
+            m_anom = orbit['ecc'] * sinh(ecc_anom) - ecc_anom
+            n = sqrt(-self.mu / (semi ** 3))
+            orbit['t0'] = self.time - m_anom / n
+        else:
+            semi = 1.0 / k1
+            orbit['peri'] = semi * (1.0 - orbit['ecc'])
+            k2 = self.r * k1
+            temp = max(-1.0, min(1.0, (1.0 - k2) / orbit['ecc']))
+            ecc_anom = acos(temp)
+            if radial_v < 0:
+                ecc_anom = 2.0 * pi - ecc_anom
             m_anom = ecc_anom - orbit['ecc'] * sin(ecc_anom)
-            period = 2 * pi * (semi ** 3 / self.mu) ** 0.5
-            progress = m_anom / (2 * pi)
+            period = 2.0 * pi * sqrt(semi ** 3 / self.mu)
+            progress = m_anom / (2.0 * pi)
             orbit['t0'] = self.time - progress * period
         return mk_Orbit(orbit)
 
     def vel_vect(self):
-        """Velocity vector in polar"""
-        return self.speed, self.long + pi / 2 - self.dir
+        return self.speed, self.long + pi / 2.0 - self.dir
 
     def get_dist(self, parent):
-        """
-        Distance from a reference state
-        :param parent: the reference state object
-        :return: Distance [Mm]
-        """
-        return (self.r ** 2 + parent.r ** 2 -
-                2 * self.r * parent.r *
-                cos(self.long - parent.long)) ** 0.5
+        return sqrt(
+            self.r ** 2 + parent.r ** 2 -
+            2.0 * self.r * parent.r * cos(self.long - parent.long)
+        )
 
     def boost(self, dv_vect):
-        """
-        Add a velocity to the current velocity vector
-        :param dv_vect: change in velocity (polar)
-        Change the state's velocity vector
-        """
-        v, dir = self.speed, self.dir
-        vx, vy = v * cos(dir), v * sin(dir)
+        v, direction = self.speed, self.dir
+        vx = v * cos(direction)
+        vy = v * sin(direction)
         dv, dv_dir = dv_vect
-        dvx, dvy = dv * cos(dv_dir), dv * sin(dv_dir)
-        vx += dvx
-        vy += dvy
-        new_speed = (vx ** 2 + vy ** 2) ** 0.5
-        new_dir = atan2(vy, vx)
-        self.speed = new_speed
-        self.dir = new_dir
+        vx += dv * cos(dv_dir)
+        vy += dv * sin(dv_dir)
+        self.speed = sqrt(vx ** 2 + vy ** 2)
+        self.dir = atan2(vy, vx)
 
 
 def mk_Orbit(load_dict):
-    """
-    Correctly initialize an Orbit object.
-    :param load_dict: [See Orbit.__init__]
-    :return: An Orbit, Hyperbolic or Parabolic object
-    """
     if load_dict is None:
-        return
-    if is_zero(load_dict['ecc'] - 1.0):  # if parabolic
-        result = Parabolic(load_dict)
-        return result
-    elif load_dict['ecc'] > 1:
+        return None
+    ecc = load_dict.get('ecc', 0.0)
+    if is_zero(ecc - 1.0):
+        return Parabolic(load_dict)
+    elif ecc > 1.0:
         return Hyperbolic(load_dict)
     else:
         return Orbit(load_dict)
 
-def add_polar(r1, r2, a1, a2, subtr=False):
-    """Add two polar vectors"""
-    if subtr:
-        a2 += pi
-    a = a2 - a1
-    dr = (r1 ** 2 + r2 ** 2 +
-          2 * r1 * r2 * cos(a)) ** 0.5
-    dy = -r2 * sin(a)
-    dx = r1 + r2 * cos(a)
-    da = a1 + atan2(dy, dx)
-    return dr, da
 
-xy_to_polar = lambda x, y: ((x ** 2 + y ** 2) ** 0.5, atan2(y, x))
+def add_polar(r1, r2, a1, a2, subtr=False):
+    x1, y1 = r1 * cos(a1), r1 * sin(a1)
+    x2, y2 = r2 * cos(a2), r2 * sin(a2)
+    if subtr:
+        x = x1 - x2
+        y = y1 - y2
+    else:
+        x = x1 + x2
+        y = y1 + y2
+    return sqrt(x * x + y * y), atan2(y, x)
+
+
+xy_to_polar = lambda x, y: (sqrt(x ** 2 + y ** 2), atan2(y, x))
 polar_to_xy = lambda r, theta: (r * cos(theta), r * sin(theta))

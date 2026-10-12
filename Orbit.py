@@ -198,7 +198,6 @@ class Orbit:
             raise ValueError
         return State(state_dict)
 
-
 class Hyperbolic(Orbit):
     """
     A special case for hyperbolic orbits, requiring some different calculations

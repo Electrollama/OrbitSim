@@ -1,4 +1,5 @@
 from Orbit import mk_Orbit
+from EventQueue import *
 
 
 class Satellite:
@@ -64,7 +65,7 @@ class Body(Satellite):
 
 class Craft(Satellite):
     """
-    A man-made satellite (space craft) that can change orbit
+    A man-made satellite (spacecraft) that can change orbit
     """
     res_types = ['delta-v', ]
 
@@ -73,6 +74,7 @@ class Craft(Satellite):
         self.resources = {}
         for r in self.res_types:
             self.resources[r] = (0, 0)
+        self.events = CraftEvents()
 
     def adjust_res(self, name, quant_adj, cap_adj=0):
         """

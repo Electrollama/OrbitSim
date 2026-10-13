@@ -11,6 +11,18 @@ Abstraction is also important. I want the future user to have access to simple t
 I'd like to try opening this up for other people to contribute to. It's one of the few times I'm interested in the final product and not just the programming process. I'm hoping it'll be a game worth sharing and for real people to try out.
 I'm new at using GitHub, so bear with me while I figure out how to collaborate.
 
+## Branch Ideas
+* KSP-like game with colony building and automated launches
+* KSP toolkit
+* Educational toolkit
+* Real life mission illustration tool
+* Catan-style turn-based strategy game
+* Dyson Sphere Program style factory game
+* Space Adventure RPG
+* Space Trucking Simulator
+* Space Warfare Simulator Strategy Game
+* Asteroids arcade game but realistic
+
 ## Log October 2026 (0.2)
   I put this project on the back-burner because of starting my career, gaming, and generally getting burnt out from the huge hurdle that is optimization algorithms. But AI has shortened that hurdle quite a bit. I still came up with the strategy for handling upcoming events and finding SOI crossings and close approaches in an efficient way, but most of the typing-out and technical implementation for this update was done using Gemini 3.8 Lite. 
   

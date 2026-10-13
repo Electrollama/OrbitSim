@@ -1,3 +1,5 @@
+__test__ = False
+
 from math import (
     sin, cos, tan, pi, exp, acos,
     sinh, cosh, atan2, isnan, acosh,

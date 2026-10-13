@@ -1,8 +1,20 @@
+__test__ = False
+
 from load import load_system
 from Satellite import Craft
 from Orbit import Orbit, State
 from orbit_plotter import *
-from numpy import arange
+try:
+    from numpy import arange
+except ImportError:
+    def arange(start, stop, step=1.0):
+        curr = start
+        res = []
+        while (curr < stop) if step > 0 else (curr > stop):
+            res.append(curr)
+            curr += step
+        return res
+
 
 """
 Procedures for making useful plots
@@ -39,7 +51,7 @@ def orbit_family(Start, param, step, n=5, init_val=None):
             c = 'green'
         plot_orbit(Orb, color=c, ls='-', marker='s')
 
-def test_burn(t_burn, v_burn):
+def plot_burn(t_burn, v_burn):
     """
     Test a burn to a new orbit
     :param t_burn: time to perform the burn
@@ -59,6 +71,7 @@ def test_burn(t_burn, v_burn):
     craft.burn([v_burn, 0.0], t_burn)
     plot_orbit(craft.orbit, color='#ffd1d1', ls='-')
     plt.plot([x_burn,], [y_burn,], 'ro')
+
 
 def planet_chart(System, start=0):
     """
@@ -85,19 +98,20 @@ def planet_chart(System, start=0):
         plot_body(p, p.orbit.semi()*scaling, 0.0)
     plot_body(System, -System.size, 0.0)
 
-def test_param(param):
+def plot_param(param):
     """
     Test the orbit-family function
     :param param: name of the parameter to change
     :return:
     """
-    System = load_system('Celestial_Bodies_KSP')
+    System = load_system('System Tables/Bodies_KSP.csv')
     Test_Orbit = System.bodies['Kerbin'].orbit
     Test_State = Test_Orbit.get_state(0.0)
     print(Test_State.Elements())
     print(Test_Orbit.Elements())
     plot_body(System)
-    orbit_family(Test_State, 'param', 10)
+    orbit_family(Test_State, param, 10)
+
 
 if __name__ == "__main__":
     System = load_system('System Tables/Bodies_KSP.csv')

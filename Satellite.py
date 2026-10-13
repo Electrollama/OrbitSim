@@ -1,3 +1,5 @@
+__test__ = False
+
 from Orbit import mk_Orbit
 
 

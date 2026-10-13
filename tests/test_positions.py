@@ -1,4 +1,8 @@
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
+
 from math import pi
 
 # list of initial planet true anomalies, +- 5 degrees, relative to Kerbin

@@ -1,6 +1,21 @@
 """Unit tests for encounter detection and SOI boundary crossings."""
 
-import pytest
+try:
+    import pytest
+except ImportError:
+    class _MockPytest:
+        class Approx:
+            def __init__(self, expected, rel=1e-3, abs=1e-6):
+                self.expected = expected
+                self.rel = rel
+                self.abs = abs
+            def __eq__(self, actual):
+                diff = abs(self.expected - actual)
+                tol = max(self.abs, abs(self.expected) * self.rel)
+                return diff <= tol
+        approx = Approx
+    pytest = _MockPytest()
+
 from Satellite import Craft
 from encounters import find_encounter, find_escape, separation, soi_enter, soi_exit
 

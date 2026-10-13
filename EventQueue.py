@@ -1,8 +1,10 @@
+__test__ = False
+
 import bisect
 import heapq
 from itertools import count
-from Physics_Engine import check_orbit
-from encounters import find_escape
+from encounters import find_escape, find_encounter
+
 
 
 class EventQueue:
@@ -225,3 +227,38 @@ class SoiExit(Event):
     def _do(self):
         self.new_orbit()
         return check_orbit(self.craft, self.time)
+
+
+def check_orbit(craft, time, n_orbits=1.0, max_days=None):
+    """
+    Check a craft's orbit starting from `time` for the next predicted event.
+    Evaluates:
+      1. Escape from parent body's SOI (if craft.parent has a parent).
+      2. Encounter with sibling bodies (other children of craft.parent).
+    Returns the earliest Event (SoiExit or SoiEnter), or None if no upcoming events.
+    """
+    if craft is None or craft.orbit is None:
+        return None
+
+    candidate_events = []
+
+    # 1. Check escape from current parent body
+    t_escape = find_escape(craft, time, max_days=max_days)
+    if t_escape is not None and t_escape >= time:
+        candidate_events.append(SoiExit(craft, t_escape, target=craft.parent))
+
+    # 2. Check encounters with sibling bodies
+    parent = craft.parent
+    if parent is not None and hasattr(parent, 'bodies'):
+        for body_name, body in parent.bodies.items():
+            if body is craft:
+                continue
+            t_enc = find_encounter(craft, time, body_name, n_orbits=n_orbits, max_days=max_days)
+            if t_enc is not None and t_enc >= time:
+                candidate_events.append(SoiEnter(craft, t_enc, body))
+
+    if not candidate_events:
+        return None
+
+    return min(candidate_events, key=lambda e: e.time)
+

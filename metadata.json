@@ -1,0 +1,8 @@
+{
+  "name": "OrbitSim - 2D Orbital Mechanics & Simulation",
+  "description": "2D orbital mechanics and mission simulation engine with Keplerian orbits, patched conics, encounter prediction, and Pyplot visualization.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,4 +1,14 @@
-import pytest
+try:
+    import pytest
+except ImportError:
+    class _MockPytest:
+        @staticmethod
+        def fixture(*args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+    pytest = _MockPytest()
+
 from os.path import dirname, abspath
 from Satellite import Craft
 from load import load_system

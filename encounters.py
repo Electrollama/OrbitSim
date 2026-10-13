@@ -5,6 +5,8 @@ Implements shared-frame separation, search window bounding, 2D geometric MOID,
 and root-finding for SOI enter and exit events.
 """
 
+__test__ = False
+
 from math import cos, sin, sqrt, pi, acos, atan2, acosh, sinh
 from Orbit import polar_to_xy
 

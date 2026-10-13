@@ -1,3 +1,5 @@
+__test__ = False
+
 import csv
 import os
 from Satellite import Body

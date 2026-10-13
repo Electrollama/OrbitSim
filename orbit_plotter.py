@@ -2,6 +2,8 @@
 Orbit plotter utility for OrbitSim.
 """
 
+__test__ = False
+
 from math import pi, cos, sin
 from Orbit import polar_to_xy
 

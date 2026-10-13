@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual Environments (DO NOT COMMIT - machine specific & huge)
+venv/
+.venv/
+env/
+ENV/
+
+# JetBrains / PyCharm IDE settings
+.idea/
+.vscode/
+
+# Testing & Pytest cache
+.pytest_cache/
+.coverage
+
+# OS generated files
+.DS_Store
+Thumbs.db

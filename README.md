@@ -8,14 +8,19 @@ I'd like the style to be minimalist, where a player can easily follow what's hap
 Abstraction is also important. I want the future user to have access to simple tools with which they can design their mission. I want this to be simple when possible but allow the user to have the standard freedoms of programming. On the other hand, I don't want the user to be able to just type "craft.orbit.periapsis = 25.23456e3" and have it be so. But they might want to know that information for their own program, maybe calculating how much to burn if they want apoapsis to be some value. Or another user might want to burn until apoapsis is some value without learning how to calculate that.
 
 ## Contributing
-I'd like to try opening this up for other people to contribute to. It's one of the few time's I'm interested in the final product and not just the programming process. I'm hoping it'll be a game worth sharing and for real people to try out.
+I'd like to try opening this up for other people to contribute to. It's one of the few times I'm interested in the final product and not just the programming process. I'm hoping it'll be a game worth sharing and for real people to try out.
 I'm new at using GitHub, so bear with me while I figure out how to collaborate.
 
-## Log 2: December/January 2020
+## Log October 2026 (0.2)
+  I put this project on the back-burner because of starting my career, gaming, and generally getting burnt out from the huge hurdle that is optimization algorithms. But AI has shortened that hurdle quite a bit. I still came up with the strategy for handling upcoming events and finding SOI crossings and close approaches in an efficient way, but most of the typing-out and technical implementation for this update was done using Gemini 3.8 Lite. 
+  
+  At this point I can put a craft on rails to flyby Mun, leave Kerbin, and go into an orbit around Kerbol. Next I'd like to implement this into the orbit plotter and allow the user to perform burns and advance time to perform a "mission". The either next update or the following one, I'll add resources like fuel, finishing the foundation of a minimalist space simulator game.
+
+## Log December/January 2020 (0.1.1)
   I had made some changes in the past but didn't set up VCS correctly. I also realized some of the values in Bodies_KSP.csv were incorrect, resulting in incorrect positions. I also added some pytests to test the starting positions of planets against the game. These changes were incorrectly pushed to develop-events instead of master (still getting the hang of using VCS), so I just merged the branches.
   I made a develop branch for committing my progress on the Event Handler. This manages things that happen over time, such as a craft encountering a body. These events need to be predicted, and then put into a queue to feed out what event happens next.
 
-## Log 1: July 2018
+## Log July 2018 (0.1)
 Currently this is a simple 2D Orbit Simulator. You can specify an orbit, calculate orbit elements, and most importantly calculate the state at a particular time. Alternately, you can specify a state at a particular time, and it'll calculate the orbit that it'll travel. 
 
 It was quite an ordeal getting the math to work for weird cases. Many sources tell you how to do it for the simple elliptical orbit case, but I also wanted flybys and orbiting counter-clockwise, and I wanted it done simply. That is why I wanted it in 2D in the first place.

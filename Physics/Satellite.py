@@ -1,6 +1,6 @@
 __test__ = False
 
-from Orbit import mk_Orbit
+from Physics.Orbit import mk_Orbit
 
 
 class Satellite:

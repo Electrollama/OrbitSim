@@ -16,9 +16,9 @@ except ImportError:
         approx = Approx
     pytest = _MockPytest()
 
-from Satellite import Craft
-from Physics_Engine import Engine, check_orbit, burn
-from EventQueue import EventQueue, SoiEnter, SoiExit
+from Physics.Satellite import Craft
+from Physics.Physics_Engine import Engine, check_orbit, burn
+from Physics.EventQueue import SoiEnter, SoiExit
 
 
 def test_engine_initialization(Kerbin):
@@ -55,7 +55,7 @@ def test_check_orbit_encounter_detection(Kerbin):
     _, mun_theta = mun.orbit.position(t_target)
     lop_deg = ((mun_theta - 3.1415926535) * 180.0 / 3.1415926535) % 360.0
 
-    from Orbit import mk_Orbit
+    from Physics.Orbit import mk_Orbit
     temp_orb = mk_Orbit({'ecc': ecc, 'peri': peri, 't0': 0.0, 'lop': lop_deg, 'mu': Kerbin.mu})
     t0_val = t_target - temp_orb.period() / 2.0
 

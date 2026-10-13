@@ -2,7 +2,7 @@ __test__ = False
 
 import csv
 import os
-from Satellite import Body
+from Physics.Satellite import Body
 
 """
 time units: Days [Earth or Kerbin]

@@ -8,7 +8,7 @@ and root-finding for SOI enter and exit events.
 __test__ = False
 
 from math import cos, sin, sqrt, pi, acos, atan2, acosh, sinh
-from Orbit import polar_to_xy
+from Physics.Orbit import polar_to_xy
 
 
 class EncounterGeometryError(ValueError):

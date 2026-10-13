@@ -10,8 +10,8 @@ except ImportError:
     pytest = _MockPytest()
 
 from os.path import dirname, abspath
-from Satellite import Craft
-from load import load_system
+from Physics.Satellite import Craft
+from Load.load import load_system
 
 project_dir = dirname(dirname(abspath(__file__)))
 System = load_system(project_dir + '/System Tables/Bodies_KSP')

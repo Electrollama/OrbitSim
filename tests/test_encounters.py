@@ -16,8 +16,8 @@ except ImportError:
         approx = Approx
     pytest = _MockPytest()
 
-from Satellite import Craft
-from encounters import find_encounter, find_escape, separation, soi_enter, soi_exit
+from Physics.Satellite import Craft
+from Physics.encounters import find_encounter, find_escape, separation, soi_enter, soi_exit
 
 
 def test_encounter_gating_out_of_range(Kerbin):
@@ -50,7 +50,7 @@ def test_encounter_mun_transfer(Kerbin):
     # For craft, apoapsis position is lop + pi. So lop = mun_theta - pi.
     lop_deg = ((mun_theta - 3.1415926535) * 180.0 / 3.1415926535) % 360.0
     # craft.t0 is set so apoapsis is at t_target: t0 = t_target - period/2
-    from Orbit import mk_Orbit
+    from Physics.Orbit import mk_Orbit
     temp_orb = mk_Orbit({'ecc': ecc, 'peri': peri, 't0': 0.0, 'lop': lop_deg, 'mu': Kerbin.mu})
     t0_val = t_target - temp_orb.period() / 2.0
 
